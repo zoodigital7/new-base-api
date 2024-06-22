@@ -1,0 +1,47 @@
+name: Ruby
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby: [3.2.0] # 2.6 is EOL March 31, 2022; kept for information only
+        rails: [7.0.4.1] # 5.2 EOL in 01 Jun 2022; kept for information only
+ 
+    env:
+      RAILS_VERSION: 7.0.4.1
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.2.0
+        bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+
+    - uses: actions/cache@v2
+      id: cache
+      with:
+        path: |
+          rswag-ui/node_modules
+          vendor/bundle
+        key: ${{ runner.os }}-ruby_${{ matrix.ruby }}-rails_${{ matrix.rails }}-${{ hashFiles('Gemfile', '**/package-lock.json') }}
+
+    - name: Install dependencies
+      run: |
+        gem update --system
+        bundle install
+    - name: rswag-specs
+      if: success() || failure()
+      run: |
+        /usr/local/bin/ruby /usr/local/bin/bundle exec rspec
+    - name: test-app
+      if: success() || failure()
+      run: |
+        bundle exec rake db:migrate db:test:prepare
+        bundle exec rspec
